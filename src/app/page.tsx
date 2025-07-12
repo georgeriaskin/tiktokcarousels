@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useRef, useState } from "react";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
 const IMAGE_ACCEPT = ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,.svg";
 
@@ -186,6 +188,126 @@ export default function Home() {
     setDemoImages(prev => prev.map((img, i) => (i === idx ? file : img)));
   };
 
+  // Генерация и экспорт всех каруселей
+  const handleExportAll = async () => {
+    const count = Math.min(hookBackgrounds.length, slideBackgrounds.length);
+    if (count === 0) return alert("Загрузите фоны для хука и остальных слайдов");
+    if (demoImages.some(img => !img)) return alert("Загрузите все 3 демо-картинки");
+    const zip = new JSZip();
+    for (let i = 0; i < count; i++) {
+      const folder = zip.folder(`${i + 1}`);
+      if (!folder) continue;
+      // Для каждого слайда генерируем картинку
+      for (let slide = 0; slide < 5; slide++) {
+        // Создаём временный canvas
+        const canvas = document.createElement("canvas");
+        canvas.width = 1080;
+        canvas.height = 1920;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+        // Фон
+        let bgFile: File | null = null;
+        if (slide === 0) bgFile = hookBackgrounds[i];
+        else bgFile = slideBackgrounds[i];
+        if (bgFile) {
+          const img = await loadImage(bgFile);
+          // Cover
+          const ratio = Math.max(1080 / img.width, 1920 / img.height);
+          const w = img.width * ratio;
+          const h = img.height * ratio;
+          const x = (1080 - w) / 2;
+          const y = (1920 - h) / 2;
+          ctx.drawImage(img, x, y, w, h);
+        } else {
+          ctx.fillStyle = "#eee";
+          ctx.fillRect(0, 0, 1080, 1920);
+        }
+        // Текст и демо (копируем логику превью)
+        ctx.save();
+        ctx.strokeStyle = '#000';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.font = 'bold 40px Montserrat, sans-serif';
+        ctx.lineWidth = 8;
+        const maxTextWidth = 900;
+        const lineHeight = 56;
+        // Функция переноса
+        function wrapMultiline(text: string, x: number, y: number, maxWidth: number, lineHeight: number, draw = true) {
+          if (!ctx) return 0;
+          const paragraphs = text.split(/\n/);
+          let lines: string[] = [];
+          paragraphs.forEach(paragraph => {
+            const words = paragraph.split(' ');
+            let line = '';
+            for (let n = 0; n < words.length; n++) {
+              const testLine = line + words[n] + ' ';
+              const metrics = ctx.measureText(testLine);
+              const testWidth = metrics.width;
+              if (testWidth > maxWidth && n > 0) {
+                lines.push(line);
+                line = words[n] + ' ';
+              } else {
+                line = testLine;
+              }
+            }
+            lines.push(line);
+          });
+          if (draw) {
+            lines.forEach((l, i) => {
+              if (!ctx) return;
+              ctx.strokeText(l.trim(), x, y + i * lineHeight);
+              ctx.fillText(l.trim(), x, y + i * lineHeight);
+            });
+          }
+          return lines.length;
+        }
+        if (slide === 0) {
+          wrapMultiline(slideTexts[0], 540, 200, maxTextWidth, lineHeight);
+        } else if (slide >= 1 && slide <= 3) {
+          ctx.font = 'bold 40px Montserrat, sans-serif';
+          ctx.lineWidth = 8;
+          // Сначала вычисляем высоту блока текста (без рендера)
+          const lines = wrapMultiline(slideTexts[slide], 540, 0, maxTextWidth, lineHeight, false);
+          const textBlockHeight = lines * lineHeight;
+          const textY = 600 - 100 - textBlockHeight + lineHeight;
+          wrapMultiline(slideTexts[slide], 540, textY, maxTextWidth, lineHeight);
+          // Демо
+          const demoFile = demoImages[slide - 1];
+          if (demoFile) {
+            const demoImg = await loadImage(demoFile);
+            const fixedWidth = 680;
+            const ratio = fixedWidth / demoImg.width;
+            const w = fixedWidth;
+            const h = demoImg.height * ratio;
+            const x = 540 - w / 2;
+            const y = 600;
+            ctx.drawImage(demoImg, x, y, w, h);
+          }
+        } else if (slide === 4) {
+          wrapMultiline(slideTexts[4], 540, 960, maxTextWidth, lineHeight);
+        }
+        ctx.restore();
+        // Сохраняем PNG
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
+        if (blob) {
+          folder.file(`${slide + 1}.png`, blob);
+        }
+      }
+    }
+    // Сохраняем архив
+    const content = await zip.generateAsync({ type: "blob" });
+    saveAs(content, "carousels.zip");
+  };
+
+  // Вспомогательная функция для загрузки File в Image
+  function loadImage(file: File): Promise<HTMLImageElement> {
+    return new Promise(resolve => {
+      const img = new window.Image();
+      img.onload = () => resolve(img);
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
   // Кастомная кнопка для файлов
   const FileButton = ({ label, inputRef, onChange, multiple = false, accept, directory = false }: any) => (
     <div className="mb-2">
@@ -309,6 +431,12 @@ export default function Home() {
             </button>
           ))}
         </div>
+        <button
+          className="mt-8 px-6 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition"
+          onClick={handleExportAll}
+        >
+          Сгенерировать и скачать все карусели
+        </button>
       </div>
     </div>
   );
