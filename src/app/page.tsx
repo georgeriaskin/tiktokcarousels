@@ -91,7 +91,7 @@ export default function Home() {
       function wrapMultiline(text: string, x: number, y: number, maxWidth: number, lineHeight: number, draw = true) {
         if (!ctx) return 0;
         const paragraphs = text.split(/\n/);
-        let lines: string[] = [];
+        const lines: string[] = [];
         paragraphs.forEach(paragraph => {
           const words = paragraph.split(' ');
           let line = '';
@@ -235,7 +235,7 @@ export default function Home() {
         function wrapMultiline(text: string, x: number, y: number, maxWidth: number, lineHeight: number, draw = true) {
           if (!ctx) return 0;
           const paragraphs = text.split(/\n/);
-          let lines: string[] = [];
+          const lines: string[] = [];
           paragraphs.forEach(paragraph => {
             const words = paragraph.split(' ');
             let line = '';
@@ -309,7 +309,14 @@ export default function Home() {
   }
 
   // Кастомная кнопка для файлов
-  const FileButton = ({ label, inputRef, onChange, multiple = false, accept, directory = false }: any) => (
+  type FileButtonProps = {
+    label: string;
+    inputRef: React.RefObject<HTMLInputElement | null>;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    multiple?: boolean;
+    accept?: string;
+  };
+  const FileButton = ({ label, inputRef, onChange, multiple = false, accept }: FileButtonProps) => (
     <div className="mb-2">
       <button
         type="button"
@@ -324,7 +331,7 @@ export default function Home() {
         accept={accept}
         ref={inputRef}
         style={{ display: 'none' }}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e)}
+        onChange={onChange}
       />
     </div>
   );
@@ -373,7 +380,6 @@ export default function Home() {
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => e.target.files && handleFiles(e.target.files, setHookBackgrounds)}
             multiple={true}
             accept={IMAGE_ACCEPT}
-            directory={true}
           />
           <div className="text-xs text-gray-500">Загружено: {hookBackgrounds.length} файлов</div>
         </div>
@@ -385,7 +391,6 @@ export default function Home() {
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => e.target.files && handleFiles(e.target.files, setSlideBackgrounds)}
             multiple={true}
             accept={IMAGE_ACCEPT}
-            directory={true}
           />
           <div className="text-xs text-gray-500">Загружено: {slideBackgrounds.length} файлов</div>
         </div>
