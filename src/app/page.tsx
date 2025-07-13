@@ -23,6 +23,8 @@ export default function Home() {
 
   // State for превью
   const [previewSlide, setPreviewSlide] = useState(0); // 0-4 (слайды 1-5)
+  // State for загрузки
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Drag-n-drop refs
   const hookBgInput = useRef<HTMLInputElement>(null);
@@ -83,10 +85,10 @@ export default function Home() {
       ctx.strokeStyle = '#000';
       ctx.fillStyle = '#fff';
       // Safe area и размеры
-      const fontSize = 40;
+      const fontSize = 48;
       const lineHeight = 56;
       const strokeWidth = 8;
-      const maxTextWidth = 900;
+      const maxTextWidth = 800;
       // Функция для переноса текста по ширине и \n
       function wrapMultiline(text: string, x: number, y: number, maxWidth: number, lineHeight: number, draw = true) {
         if (!ctx) return 0;
@@ -122,19 +124,18 @@ export default function Home() {
         ctx.font = `bold ${fontSize}px Montserrat, sans-serif`;
         ctx.lineWidth = strokeWidth;
         // Текст с отступом 200px от верхнего края
-        wrapMultiline(slideTexts[0], 540, 200, maxTextWidth, lineHeight);
+        wrapMultiline(slideTexts[0], 540, 300, maxTextWidth, lineHeight);
       }
       // Слайды 2-4: демо + текст
       if (previewSlide >= 1 && previewSlide <= 3) {
-        ctx.font = `bold ${fontSize}px Montserrat, sans-serif`;
-        ctx.lineWidth = strokeWidth;
-        // Сначала вычисляем высоту блока текста (без рендера)
-        const lines = wrapMultiline(slideTexts[previewSlide], 540, 0, maxTextWidth, lineHeight, false);
+        ctx.font = 'bold 48px Montserrat, sans-serif';
+        ctx.lineWidth = 8;
+        const textWidth = 920;
+        const lineHeight = 56;
+        const lines = wrapMultiline(slideTexts[previewSlide].trim(), 540, 0, textWidth, lineHeight, false);
         const textBlockHeight = lines * lineHeight;
-        // Текст размещаем так, чтобы между ним и демо был отступ 100px
-        // Демо всегда на 600px, textBlockHeight + 100px + демо = 600px => y = 600 - 100 - textBlockHeight
         const textY = 600 - 100 - textBlockHeight + lineHeight;
-        wrapMultiline(slideTexts[previewSlide], 540, textY, maxTextWidth, lineHeight);
+        wrapMultiline(slideTexts[previewSlide].trim(), 540, textY, textWidth, lineHeight);
         // Демо картинка
         const demoFile = demo[previewSlide - 1];
         if (demoFile) {
@@ -156,7 +157,7 @@ export default function Home() {
       if (previewSlide === 4) {
         ctx.font = `bold ${fontSize}px Montserrat, sans-serif`;
         ctx.lineWidth = strokeWidth;
-        wrapMultiline(slideTexts[4], 540, 960, maxTextWidth, lineHeight);
+        wrapMultiline(slideTexts[4], 540, 960, 800, lineHeight);
       }
       ctx.restore();
     }
@@ -190,9 +191,18 @@ export default function Home() {
 
   // Генерация и экспорт всех каруселей
   const handleExportAll = async () => {
+    setIsGenerating(true);
     const count = Math.min(hookBackgrounds.length, slideBackgrounds.length);
-    if (count === 0) return alert("Загрузите фоны для хука и остальных слайдов");
-    if (demoImages.some(img => !img)) return alert("Загрузите все 3 демо-картинки");
+    if (count === 0) {
+      alert("Загрузите фоны для хука и остальных слайдов");
+      setIsGenerating(false);
+      return;
+    }
+    if (demoImages.some(img => !img)) {
+      alert("Загрузите все 3 демо-картинки");
+      setIsGenerating(false);
+      return;
+    }
     const zip = new JSZip();
     for (let i = 0; i < count; i++) {
       const folder = zip.folder(`${i + 1}`);
@@ -227,9 +237,9 @@ export default function Home() {
         ctx.strokeStyle = '#000';
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
-        ctx.font = 'bold 40px Montserrat, sans-serif';
+        ctx.font = 'bold 48px Montserrat, sans-serif';
         ctx.lineWidth = 8;
-        const maxTextWidth = 900;
+        const maxTextWidth = 920;
         const lineHeight = 56;
         // Функция переноса
         function wrapMultiline(text: string, x: number, y: number, maxWidth: number, lineHeight: number, draw = true) {
@@ -262,15 +272,16 @@ export default function Home() {
           return lines.length;
         }
         if (slide === 0) {
-          wrapMultiline(slideTexts[0], 540, 200, maxTextWidth, lineHeight);
+          wrapMultiline(slideTexts[0], 540, 300, maxTextWidth, lineHeight);
         } else if (slide >= 1 && slide <= 3) {
-          ctx.font = 'bold 40px Montserrat, sans-serif';
+          ctx.font = 'bold 48px Montserrat, sans-serif';
           ctx.lineWidth = 8;
-          // Сначала вычисляем высоту блока текста (без рендера)
-          const lines = wrapMultiline(slideTexts[slide], 540, 0, maxTextWidth, lineHeight, false);
+          const textWidth = 920;
+          const lineHeight = 56;
+          const lines = wrapMultiline(slideTexts[slide].trim(), 540, 0, textWidth, lineHeight, false);
           const textBlockHeight = lines * lineHeight;
           const textY = 600 - 100 - textBlockHeight + lineHeight;
-          wrapMultiline(slideTexts[slide], 540, textY, maxTextWidth, lineHeight);
+          wrapMultiline(slideTexts[slide].trim(), 540, textY, textWidth, lineHeight);
           // Демо
           const demoFile = demoImages[slide - 1];
           if (demoFile) {
@@ -284,7 +295,7 @@ export default function Home() {
             ctx.drawImage(demoImg, x, y, w, h);
           }
         } else if (slide === 4) {
-          wrapMultiline(slideTexts[4], 540, 960, maxTextWidth, lineHeight);
+          wrapMultiline(slideTexts[4], 540, 960, 800, lineHeight);
         }
         ctx.restore();
         // Сохраняем PNG
@@ -297,6 +308,7 @@ export default function Home() {
     // Сохраняем архив
     const content = await zip.generateAsync({ type: "blob" });
     saveAs(content, "carousels.zip");
+    setIsGenerating(false);
   };
 
   // Вспомогательная функция для загрузки File в Image
@@ -439,8 +451,16 @@ export default function Home() {
         <button
           className="mt-8 px-6 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition"
           onClick={handleExportAll}
+          disabled={isGenerating}
         >
-          Сгенерировать и скачать все карусели
+          {isGenerating ? (
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Генерируется...
+            </div>
+          ) : (
+            "Сгенерировать и скачать все карусели"
+          )}
         </button>
       </div>
     </div>
