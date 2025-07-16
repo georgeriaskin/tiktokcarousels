@@ -1,12 +1,8 @@
 'use client';
 
 import React, { useState } from "react";
-import JSZip from "jszip";
-import { saveAs } from "file-saver";
 import Template1Carousel from "../components/Template1Carousel";
 import Template2Carousel from "../components/Template2Carousel";
-
-const IMAGE_ACCEPT = ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,.svg";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<1 | 2>(1);
