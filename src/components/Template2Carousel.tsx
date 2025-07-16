@@ -301,7 +301,7 @@ export default function Template2Carousel() {
             const w = fixedW;
             const h = demoImg.height * ratio;
             const x = 540 - w/2;
-            const y = descY + boxH + 30; // под описанием
+            const y = descY + boxH + 40; // фиксированный отступ 40px
             ctx.drawImage(demoImg, x, y, w, h);
           };
           demoImg.src = URL.createObjectURL(demoFile);
@@ -485,7 +485,7 @@ export default function Template2Carousel() {
             const w = fixedW;
             const h = demoImg.height * ratio;
             const x = 540 - w/2;
-            const y = 370 + yShift;
+            const y = descY + boxH + 40; // фиксированный отступ 40px
             ctx.drawImage(demoImg, x, y, w, h);
           }
         }
