@@ -244,9 +244,8 @@ export default function Template2Carousel() {
         ctx.restore();
         // Описание (чёрная прозрачная подложка)
         ctx.save();
-        ctx.font = 'bold 36px Inter, sans-serif';
-        ctx.textAlign = 'center';
         ctx.globalAlpha = 0.7;
+        ctx.font = '500 36px Inter, sans-serif'; // medium
         const descPadX = 24;
         const descMaxW = 900;
         // --- вычисляем переносы и размеры ---
@@ -282,7 +281,7 @@ export default function Template2Carousel() {
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#fff';
         // --- рисуем строки по центру подложки ---
-        ctx.font = 'bold 36px Inter, sans-serif';
+        ctx.font = '500 36px Inter, sans-serif'; // medium
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         let currY = descY + boxH / 2 - textH / 2 + lineHeight / 2;
@@ -376,11 +375,13 @@ export default function Template2Carousel() {
         // Slide 1: три заголовка
         if (slide === 0) {
           const titles = slide1Titles;
-          const yBase = 400 + 250; // сдвиг вниз
           const padY = 24;
-          const padX = 32; // паддинг по ширине
-          const boxW = 900;
+          const padX = 32;
           const boxH = 70;
+          // Центрируем блок из 3-х заголовков по вертикали
+          const totalBlockHeight = boxH * 3 + padY * 2;
+          const yBase = Math.round((1350 - totalBlockHeight) / 2);
+          ctx.font = 'bold 48px Inter, sans-serif';
           // Верхний (красный)
           ctx.save();
           ctx.font = 'bold 48px Inter, sans-serif';
@@ -398,7 +399,7 @@ export default function Template2Carousel() {
           ctx.fillStyle = '#fff';
           roundRect(ctx, 540 - w2/2, yBase + boxH + padY, w2, boxH, 32);
           ctx.fill();
-          ctx.fillStyle = '#111'; // ЧЁРНЫЙ ТЕКСТ!
+          ctx.fillStyle = '#111';
           ctx.fillText(titles[1], 540, yBase + boxH + padY + boxH/2 + 16);
           ctx.restore();
           // Нижний (красный)
@@ -431,19 +432,49 @@ export default function Template2Carousel() {
           // Описание (чёрная прозрачная подложка)
           ctx.save();
           ctx.globalAlpha = 0.7;
-          ctx.font = 'bold 36px Inter, sans-serif'; // ЖИРНЫЙ!
-          const descMaxW = 900;
+          ctx.font = '500 36px Inter, sans-serif'; // medium
           const descPadX = 24;
-          const descLines = 3;
+          const descMaxW = 900;
+          // --- вычисляем переносы и размеры ---
+          const lines: string[] = [];
+          if (s.desc) {
+            const words = s.desc.split(' ');
+            let line = '';
+            for (let n = 0; n < words.length; n++) {
+              const testLine = line + words[n] + ' ';
+              const metrics = ctx.measureText(testLine);
+              const testWidth = metrics.width;
+              if (testWidth > descMaxW - descPadX*2 && n > 0) {
+                lines.push(line.trim());
+                line = words[n] + ' ';
+              } else {
+                line = testLine;
+              }
+            }
+            lines.push(line.trim());
+          }
+          const textW = Math.min(
+            Math.max(...lines.map(l => ctx.measureText(l).width)),
+            descMaxW - descPadX*2
+          ) + descPadX*2;
+          const lineHeight = 40;
+          const textH = lines.length * lineHeight;
+          const padY = 32;
+          const boxH = textH + padY * 2;
+          const descX = 540 - textW/2;
           const descY = 220 + yShift;
-          const descTextW = Math.min(ctx.measureText(s.desc).width + descPadX*2, descMaxW);
-          roundRect(ctx, 540 - descMaxW/2, descY, descMaxW, 90, 32);
+          roundRect(ctx, descX, descY, textW, boxH, 32);
           ctx.fill();
           ctx.globalAlpha = 1;
           ctx.fillStyle = '#fff';
-          // Переносим текст
+          ctx.font = '500 36px Inter, sans-serif';
           ctx.textAlign = 'center';
-          wrapText(ctx, s.desc, 540, descY + 90/2 + 12 - 36, descMaxW - descPadX*2, 40);
+          ctx.textBaseline = 'middle';
+          let currY = descY + boxH / 2 - textH / 2 + lineHeight / 2;
+          for (const l of lines) {
+            ctx.fillText(l, 540, currY);
+            currY += lineHeight;
+          }
           ctx.restore();
           // Демо-изображение
           const demoFile = demoImages[slide-1];
