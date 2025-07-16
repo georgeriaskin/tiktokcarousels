@@ -284,7 +284,8 @@ export default function Template2Carousel() {
         // --- рисуем строки по центру подложки ---
         ctx.font = 'bold 36px Inter, sans-serif';
         ctx.textAlign = 'center';
-        let currY = descY + (boxH - textH) / 2 + lineHeight / 2;
+        ctx.textBaseline = 'middle';
+        let currY = descY + boxH / 2 - textH / 2 + lineHeight / 2;
         for (const l of lines) {
           ctx.fillText(l, 540, currY);
           currY += lineHeight;
