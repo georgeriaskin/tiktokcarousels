@@ -186,20 +186,20 @@ export default function Template2Carousel() {
       ctx.font = 'bold 48px Inter, sans-serif';
       ctx.textAlign = 'center';
       ctx.lineWidth = 6;
-      // Safe area
-      const maxTextWidth = 900;
       // Slide 1: три заголовка по центру с подложками (верх/низ красные, центр белая)
       if (previewSlide === 0) {
         const titles = slide1Titles;
-        const yBase = 400 + 250; // сдвиг вниз
         const padY = 24;
-        const padX = 32; // паддинг по ширине
+        const padX = 32;
+        const boxH = 70;
+        // Считаем высоту блока
+        const totalBlockHeight = boxH * 3 + padY * 2;
+        const yBase = Math.round((1350 - totalBlockHeight) / 2);
         ctx.font = 'bold 48px Inter, sans-serif';
         // Верхний (красный)
         ctx.save();
         ctx.font = 'bold 48px Inter, sans-serif';
         const w1 = ctx.measureText(titles[0]).width + padX*2;
-        const boxH = 70;
         ctx.fillStyle = '#E53935';
         roundRect(ctx, 540 - w1/2, yBase, w1, boxH, 32);
         ctx.fill();
@@ -213,7 +213,7 @@ export default function Template2Carousel() {
         ctx.fillStyle = '#fff';
         roundRect(ctx, 540 - w2/2, yBase + boxH + padY, w2, boxH, 32);
         ctx.fill();
-        ctx.fillStyle = '#111'; // ЧЁРНЫЙ ТЕКСТ!
+        ctx.fillStyle = '#111';
         ctx.fillText(titles[1], 540, yBase + boxH + padY + boxH/2 + 16);
         ctx.restore();
         // Нижний (красный)
@@ -230,7 +230,6 @@ export default function Template2Carousel() {
       // Слайды 2-6: заголовок с красной подложкой, описание с чёрной прозрачной подложкой, демо
       if (previewSlide >= 1 && previewSlide <= 5) {
         const slide = slideTexts[previewSlide-1];
-        // Сдвиг вниз
         const yShift = 250;
         // Заголовок (красная подложка)
         ctx.save();
@@ -245,20 +244,51 @@ export default function Template2Carousel() {
         ctx.restore();
         // Описание (чёрная прозрачная подложка)
         ctx.save();
+        ctx.font = 'bold 36px Inter, sans-serif';
+        ctx.textAlign = 'center';
         ctx.globalAlpha = 0.7;
-        ctx.font = 'bold 36px Inter, sans-serif'; // ЖИРНЫЙ!
-        const descMaxW = 900;
         const descPadX = 24;
-        const descLines = 3;
+        const descMaxW = 900;
+        // --- вычисляем переносы и размеры ---
+        const lines: string[] = [];
+        if (slide.desc) {
+          const words = slide.desc.split(' ');
+          let line = '';
+          for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = ctx.measureText(testLine);
+            const testWidth = metrics.width;
+            if (testWidth > descMaxW - descPadX*2 && n > 0) {
+              lines.push(line.trim());
+              line = words[n] + ' ';
+            } else {
+              line = testLine;
+            }
+          }
+          lines.push(line.trim());
+        }
+        const textW = Math.min(
+          Math.max(...lines.map(l => ctx.measureText(l).width)),
+          descMaxW - descPadX*2
+        ) + descPadX*2;
+        const lineHeight = 40;
+        const textH = lines.length * lineHeight;
+        const padY = 32;
+        const boxH = textH + padY * 2;
+        const descX = 540 - textW/2;
         const descY = 220 + yShift;
-        const descTextW = Math.min(ctx.measureText(slide.desc).width + descPadX*2, descMaxW);
-        roundRect(ctx, 540 - descMaxW/2, descY, descMaxW, 90, 32);
+        roundRect(ctx, descX, descY, textW, boxH, 32);
         ctx.fill();
         ctx.globalAlpha = 1;
         ctx.fillStyle = '#fff';
-        // Переносим текст
+        // --- рисуем строки по центру подложки ---
+        ctx.font = 'bold 36px Inter, sans-serif';
         ctx.textAlign = 'center';
-        wrapText(ctx, slide.desc, 540, descY + 90/2 + 12 - 36, descMaxW - descPadX*2, 40);
+        let currY = descY + (boxH - textH) / 2 + lineHeight / 2;
+        for (const l of lines) {
+          ctx.fillText(l, 540, currY);
+          currY += lineHeight;
+        }
         ctx.restore();
         // Демо-изображение
         const demoFile = demoImages[previewSlide-1];
@@ -271,7 +301,7 @@ export default function Template2Carousel() {
             const w = fixedW;
             const h = demoImg.height * ratio;
             const x = 540 - w/2;
-            const y = 370 + yShift;
+            const y = descY + boxH + 30; // под описанием
             ctx.drawImage(demoImg, x, y, w, h);
           };
           demoImg.src = URL.createObjectURL(demoFile);
