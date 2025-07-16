@@ -52,7 +52,7 @@ export default function Template2Carousel() {
     const total = Math.ceil(bgFiles.length / 6);
     for (let i = 0; i < total; i++) {
       const start = i * 6;
-      let group = bgFiles.slice(start, start + 6);
+      const group = bgFiles.slice(start, start + 6);
       if (group.length < 6) {
         // Добиваем рандомными из всех загруженных
         while (group.length < 6) {
@@ -127,28 +127,6 @@ export default function Template2Carousel() {
       bgInput.current.setAttribute('directory', '');
     }
   }, []);
-
-  // --- TEXT WRAP FUNCTION ---
-  function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) {
-    if (!text) return y;
-    const words = text.split(' ');
-    let line = '';
-    let currY = y;
-    for (let n = 0; n < words.length; n++) {
-      const testLine = line + words[n] + ' ';
-      const metrics = ctx.measureText(testLine);
-      const testWidth = metrics.width;
-      if (testWidth > maxWidth && n > 0) {
-        ctx.fillText(line, x, currY);
-        line = words[n] + ' ';
-        currY += lineHeight;
-      } else {
-        line = testLine;
-      }
-    }
-    ctx.fillText(line, x, currY);
-    return currY + lineHeight;
-  }
 
   // Рендер предпросмотра на canvas
   useEffect(() => {
@@ -323,7 +301,6 @@ export default function Template2Carousel() {
       ctx.quadraticCurveTo(x, y, x + r, y);
       ctx.closePath();
     }
-  // eslint-disable-next-line
   }, [carousels, previewSlide, slide1Titles, slideTexts, demoImages]);
 
   // Экспорт всех каруселей
