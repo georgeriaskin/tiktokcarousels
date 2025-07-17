@@ -193,7 +193,8 @@ export default function Template4Carousel() {
         ctx.save();
         ctx.font = 'bold 72px Inter, sans-serif';
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 10;
+        ctx.lineWidth = 12;
+        ctx.lineJoin = 'round';
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
