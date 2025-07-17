@@ -54,7 +54,7 @@ export default function Template4Carousel() {
     for (let i = 0; i < minCarousels; i++) {
       const hook = hookBgs[i % hookBgs.length];
       const slides = slideBgs.slice(i * 5, i * 5 + 5);
-      let group = [hook, ...slides];
+      const group = [hook, ...slides];
       // Если не хватает слайдов, добиваем рандомом
       while (group.length < 6) {
         const randIdx = Math.floor(Math.random() * slideBgs.length);
@@ -438,7 +438,15 @@ export default function Template4Carousel() {
     });
   }
 
-  const FileButton = ({ label, inputRef, onChange, multiple = false, accept }: any) => (
+  // Заменяю типизацию FileButton
+  interface FileButtonProps {
+    label: string;
+    inputRef: React.RefObject<HTMLInputElement | null>;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    multiple?: boolean;
+    accept?: string;
+  }
+  const FileButton = ({ label, inputRef, onChange, multiple = false, accept }: FileButtonProps) => (
     <div className="mb-2">
       <button
         type="button"
