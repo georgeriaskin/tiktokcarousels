@@ -1,0 +1,568 @@
+import React, { useRef, useState } from "react";
+import { useEffect } from "react";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
+
+const IMAGE_ACCEPT = ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,.svg";
+
+// --- localStorage keys ---
+const LS_SLIDE1 = 'template4_slide1Title';
+const LS_SLIDETEXTS = 'template4_slideTexts';
+
+export default function Template4Carousel() {
+  // --- INIT STATE WITH LOCALSTORAGE ---
+  const [slide1Title, setSlide1Title] = useState<string>(() => {
+    try {
+      const val = localStorage.getItem(LS_SLIDE1);
+      return val ? JSON.parse(val) : "";
+    } catch { return ""; }
+  });
+  const [slideTexts, setSlideTexts] = useState<{ title: string; desc: string }[]>(() => {
+    try {
+      const val = localStorage.getItem(LS_SLIDETEXTS);
+      return val ? JSON.parse(val) : [
+        { title: "", desc: "" },
+        { title: "", desc: "" },
+        { title: "", desc: "" },
+        { title: "", desc: "" },
+        { title: "", desc: "" },
+      ];
+    } catch {
+      return [
+        { title: "", desc: "" },
+        { title: "", desc: "" },
+        { title: "", desc: "" },
+        { title: "", desc: "" },
+        { title: "", desc: "" },
+      ];
+    }
+  });
+  // Демо-изображения для слайдов 2-6
+  const [demoImages, setDemoImages] = useState<(File | null)[]>([null, null, null, null, null]);
+  // Фоны
+  const [hookBackgrounds, setHookBackgrounds] = useState<File[]>([]);
+  const [slideBackgrounds, setSlideBackgrounds] = useState<File[]>([]);
+  const [previewSlide, setPreviewSlide] = useState(0); // 0-5 (слайды 1-6)
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  // Логика распределения фонов по каруселям
+  function getCarouselsFromBackgrounds(hookBgs: File[], slideBgs: File[]): File[][] {
+    if (hookBgs.length < 1 || slideBgs.length < 5) return [];
+    const minCarousels = Math.min(hookBgs.length, Math.floor(slideBgs.length / 5));
+    const carousels: File[][] = [];
+    for (let i = 0; i < minCarousels; i++) {
+      const hook = hookBgs[i % hookBgs.length];
+      const slides = slideBgs.slice(i * 5, i * 5 + 5);
+      let group = [hook, ...slides];
+      // Если не хватает слайдов, добиваем рандомом
+      while (group.length < 6) {
+        const randIdx = Math.floor(Math.random() * slideBgs.length);
+        group.push(slideBgs[randIdx]);
+      }
+      carousels.push(group);
+    }
+    return carousels;
+  }
+  const carousels = getCarouselsFromBackgrounds(hookBackgrounds, slideBackgrounds);
+
+  // --- SAVE TO LOCALSTORAGE ON CHANGE ---
+  useEffect(() => {
+    localStorage.setItem(LS_SLIDE1, JSON.stringify(slide1Title));
+  }, [slide1Title]);
+  useEffect(() => {
+    localStorage.setItem(LS_SLIDETEXTS, JSON.stringify(slideTexts));
+  }, [slideTexts]);
+
+  // Handlers
+  const handleTitleChange = (value: string) => {
+    setSlide1Title(value);
+  };
+  const handleSlideTextChange = (idx: number, field: 'title' | 'desc', value: string) => {
+    setSlideTexts(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
+  };
+  const handleDemoImage = (idx: number, file: File | null) => {
+    setDemoImages(prev => prev.map((img, i) => (i === idx ? file : img)));
+  };
+  const handleHookBackgrounds = (files: FileList) => {
+    setHookBackgrounds(Array.from(files));
+  };
+  const handleSlideBackgrounds = (files: FileList) => {
+    setSlideBackgrounds(Array.from(files));
+  };
+
+  // File input refs
+  const hookBgInput = useRef<HTMLInputElement>(null);
+  const slideBgInput = useRef<HTMLInputElement>(null);
+  const demoInputs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)];
+
+  // Добавляем webkitdirectory
+  React.useEffect(() => {
+    if (hookBgInput.current) {
+      hookBgInput.current.setAttribute('webkitdirectory', '');
+      hookBgInput.current.setAttribute('directory', '');
+    }
+    if (slideBgInput.current) {
+      slideBgInput.current.setAttribute('webkitdirectory', '');
+      slideBgInput.current.setAttribute('directory', '');
+    }
+  }, []);
+
+  // Функция для переноса текста по ширине и \n
+  function wrapMultiline(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number, draw = true) {
+    const paragraphs = text.split(/\n/);
+    const lines: string[] = [];
+    paragraphs.forEach(paragraph => {
+      const words = paragraph.split(' ');
+      let line = '';
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+        if (testWidth > maxWidth && n > 0) {
+          lines.push(line);
+          line = words[n] + ' ';
+        } else {
+          line = testLine;
+        }
+      }
+      lines.push(line);
+    });
+    if (draw) {
+      lines.forEach((l, i) => {
+        ctx.strokeText(l.trim(), x, y + i * lineHeight);
+        ctx.fillText(l.trim(), x, y + i * lineHeight);
+      });
+    }
+    return lines.length;
+  }
+
+  // Вспомогательная функция для скруглённых прямоугольников
+  function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // Рендер предпросмотра на canvas
+  useEffect(() => {
+    if (!carousels[0]) return;
+    const bgFile = carousels[0][previewSlide];
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Фон
+    if (bgFile) {
+      const img = new window.Image();
+      img.onload = () => {
+        if (!ctx) return;
+        // Cover 1080x1350
+        const ratio = Math.max(1080 / img.width, 1350 / img.height);
+        const w = img.width * ratio;
+        const h = img.height * ratio;
+        const x = (1080 - w) / 2;
+        const y = (1350 - h) / 2;
+        ctx.clearRect(0, 0, 1080, 1350);
+        ctx.drawImage(img, x, y, w, h);
+        drawContent();
+      };
+      img.src = URL.createObjectURL(bgFile);
+    } else {
+      ctx.fillStyle = '#eee';
+      ctx.fillRect(0, 0, 1080, 1350);
+      drawContent();
+    }
+    function drawContent() {
+      if (!ctx) return;
+      ctx.save();
+      ctx.font = 'bold 48px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 6;
+      // Slide 1: hook — перенос, safe area, ограничение ширины, центрирование
+      if (previewSlide === 0) {
+        ctx.save();
+        ctx.font = 'bold 72px Inter, sans-serif';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 10;
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const maxTextWidth = 920;
+        const lineHeight = 80;
+        // Считаем высоту блока
+        const lines = wrapMultiline(ctx, slide1Title, 540, 0, maxTextWidth, lineHeight, false);
+        const textBlockHeight = lines * lineHeight;
+        const y = Math.round((1350 - textBlockHeight) / 2);
+        wrapMultiline(ctx, slide1Title, 540, y, maxTextWidth, lineHeight, true);
+        ctx.restore();
+      }
+      // Слайды 2-6: заголовок без подложки, белый с черной обводкой, описание с подложкой, демо
+      if (previewSlide >= 1 && previewSlide <= 5) {
+        const slide = slideTexts[previewSlide-1];
+        const yShift = 250;
+        // Заголовок (без подложки, еще крупнее)
+        ctx.save();
+        ctx.font = 'bold 56px Inter, sans-serif';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 8;
+        ctx.lineJoin = 'round';
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.strokeText(slide.title, 540, 120 + yShift + 35);
+        ctx.fillText(slide.title, 540, 120 + yShift + 35);
+        ctx.restore();
+        // Описание (чёрная прозрачная подложка)
+        ctx.save();
+        ctx.globalAlpha = 1;
+        ctx.font = '500 36px Inter, sans-serif'; // medium
+        const descPadX = 24;
+        const descMaxW = 900;
+        // --- вычисляем переносы и размеры ---
+        const lines: string[] = [];
+        if (slide.desc) {
+          const words = slide.desc.split(' ');
+          let line = '';
+          for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = ctx.measureText(testLine);
+            const testWidth = metrics.width;
+            if (testWidth > descMaxW - descPadX*2 && n > 0) {
+              lines.push(line.trim());
+              line = words[n] + ' ';
+            } else {
+              line = testLine;
+            }
+          }
+          lines.push(line.trim());
+        }
+        const textW = Math.min(
+          Math.max(...lines.map(l => ctx.measureText(l).width)),
+          descMaxW - descPadX*2
+        ) + descPadX*2;
+        const lineHeight = 40;
+        const textH = lines.length * lineHeight;
+        const padY = 32;
+        const boxH = textH + padY * 2;
+        const descX = 540 - textW/2;
+        const descY = 220 + yShift;
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        roundRect(ctx, descX, descY, textW, boxH, 32);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff';
+        // --- рисуем строки по центру подложки ---
+        ctx.font = '500 36px Inter, sans-serif'; // medium
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        let currY = descY + boxH / 2 - textH / 2 + lineHeight / 2;
+        for (const l of lines) {
+          ctx.fillText(l, 540, currY);
+          currY += lineHeight;
+        }
+        ctx.restore();
+        // Демо-изображение
+        const demoFile = demoImages[previewSlide-1];
+        if (demoFile) {
+          const demoImg = new window.Image();
+          demoImg.onload = () => {
+            if (!ctx) return;
+            const fixedW = 864;
+            const ratio = fixedW / demoImg.width;
+            const w = fixedW;
+            const h = demoImg.height * ratio;
+            const x = 540 - w/2;
+            const y = descY + boxH + 40; // фиксированный отступ 40px
+            ctx.drawImage(demoImg, x, y, w, h);
+          };
+          demoImg.src = URL.createObjectURL(demoFile);
+        }
+      }
+      ctx.restore();
+    }
+  }, [carousels, previewSlide, slide1Title, slideTexts, demoImages]);
+
+  async function handleExportAll() {
+    setIsGenerating(true);
+    if (!carousels.length) {
+      alert("Загрузите фоны для hook и продуктовых слайдов");
+      setIsGenerating(false);
+      return;
+    }
+    const zip = new JSZip();
+    for (let i = 0; i < carousels.length; i++) {
+      const folder = zip.folder(`${i + 1}`);
+      if (!folder) continue;
+      for (let slide = 0; slide < 6; slide++) {
+        // Создаём временный canvas
+        const canvas = document.createElement("canvas");
+        canvas.width = 1080;
+        canvas.height = 1350;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) continue;
+        // Фон
+        const bgFile = carousels[i][slide];
+        if (bgFile) {
+          const img = await loadImage(bgFile);
+          const ratio = Math.max(1080 / img.width, 1350 / img.height);
+          const w = img.width * ratio;
+          const h = img.height * ratio;
+          const x = (1080 - w) / 2;
+          const y = (1350 - h) / 2;
+          ctx.drawImage(img, x, y, w, h);
+        } else {
+          ctx.fillStyle = '#eee';
+          ctx.fillRect(0, 0, 1080, 1350);
+        }
+        ctx.save();
+        // Slide 1: hook — перенос, safe area, ограничение ширины, центрирование
+        if (slide === 0) {
+          ctx.font = 'bold 72px Inter, sans-serif';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 8;
+          ctx.lineJoin = 'round';
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'top';
+          const maxTextWidth = 920;
+          const lineHeight = 80;
+          const lines = wrapMultiline(ctx, slide1Title, 540, 0, maxTextWidth, lineHeight, false);
+          const textBlockHeight = lines * lineHeight;
+          const y = Math.round((1350 - textBlockHeight) / 2);
+          wrapMultiline(ctx, slide1Title, 540, y, maxTextWidth, lineHeight, true);
+        }
+        // Слайды 2-6: заголовок без подложки, белый с черной обводкой, описание с подложкой, демо
+        if (slide >= 1 && slide <= 5) {
+          const s = slideTexts[slide-1];
+          const yShift = 250;
+          // Заголовок (без подложки, еще крупнее)
+          ctx.font = 'bold 56px Inter, sans-serif';
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 8;
+          ctx.lineJoin = 'round';
+          ctx.fillStyle = '#fff';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.strokeText(s.title, 540, 120 + yShift + 35);
+          ctx.fillText(s.title, 540, 120 + yShift + 35);
+          // Описание (чёрная прозрачная подложка)
+          ctx.save();
+          ctx.globalAlpha = 1;
+          ctx.font = '500 36px Inter, sans-serif';
+          const descPadX = 24;
+          const descMaxW = 900;
+          // --- вычисляем переносы и размеры ---
+          const lines: string[] = [];
+          if (s.desc) {
+            const words = s.desc.split(' ');
+            let line = '';
+            for (let n = 0; n < words.length; n++) {
+              const testLine = line + words[n] + ' ';
+              const metrics = ctx.measureText(testLine);
+              const testWidth = metrics.width;
+              if (testWidth > descMaxW - descPadX*2 && n > 0) {
+                lines.push(line.trim());
+                line = words[n] + ' ';
+              } else {
+                line = testLine;
+              }
+            }
+            lines.push(line.trim());
+          }
+          const textW = Math.min(
+            Math.max(...lines.map(l => ctx.measureText(l).width)),
+            descMaxW - descPadX*2
+          ) + descPadX*2;
+          const lineHeight = 40;
+          const textH = lines.length * lineHeight;
+          const padY = 32;
+          const boxH = textH + padY * 2;
+          const descX = 540 - textW/2;
+          const descY = 220 + yShift;
+          ctx.fillStyle = 'rgba(0,0,0,0.7)';
+          roundRect(ctx, descX, descY, textW, boxH, 32);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = '#fff';
+          ctx.font = '500 36px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          let currY = descY + boxH / 2 - textH / 2 + lineHeight / 2;
+          for (const l of lines) {
+            ctx.fillText(l, 540, currY);
+            currY += lineHeight;
+          }
+          ctx.restore();
+          // Демо-изображение
+          const demoFile = demoImages[slide-1];
+          if (demoFile) {
+            const demoImg = await loadImage(demoFile);
+            const fixedW = 864;
+            const ratio = fixedW / demoImg.width;
+            const w = fixedW;
+            const h = demoImg.height * ratio;
+            const x = 540 - w/2;
+            const y = descY + boxH + 40; // фиксированный отступ 40px
+            ctx.drawImage(demoImg, x, y, w, h);
+          }
+        }
+        ctx.restore();
+        // Сохраняем PNG
+        const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
+        if (blob) {
+          folder.file(`${slide + 1}.png`, blob);
+        }
+      }
+    }
+    const content = await zip.generateAsync({ type: "blob" });
+    saveAs(content, "carousels-template4.zip");
+    setIsGenerating(false);
+  }
+  // Вспомогательная функция для загрузки File в Image
+  function loadImage(file: File): Promise<HTMLImageElement> {
+    return new Promise(resolve => {
+      const img = new window.Image();
+      img.onload = () => resolve(img);
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  const FileButton = ({ label, inputRef, onChange, multiple = false, accept }: any) => (
+    <div className="mb-2">
+      <button
+        type="button"
+        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+        onClick={() => inputRef.current && inputRef.current.click()}
+      >
+        {label}
+      </button>
+      <input
+        type="file"
+        multiple={multiple}
+        accept={accept}
+        ref={inputRef}
+        style={{ display: 'none' }}
+        onChange={onChange}
+      />
+    </div>
+  );
+
+  return (
+    <div className="w-full max-w-xl flex flex-col gap-6 bg-white p-6 rounded-xl shadow">
+      <div className="mb-4">
+        <div className="font-semibold mb-2">Слайд 1: Заголовок (hook)</div>
+        <input
+          className="border rounded px-3 py-2 mb-2 w-full"
+          placeholder={`Заголовок`}
+          value={slide1Title}
+          onChange={e => handleTitleChange(e.target.value)}
+        />
+      </div>
+      <div className="mb-4">
+        <div className="font-semibold mb-2">Слайды 2–6: Заголовок, описание, демо</div>
+        {slideTexts.map((slide, idx) => (
+          <div key={idx} className="mb-3 p-2 border rounded">
+            <div className="mb-1 font-medium">Слайд {idx+2}</div>
+            <input
+              className="border rounded px-3 py-2 mb-1 w-full"
+              placeholder="Заголовок"
+              value={slide.title}
+              onChange={e => handleSlideTextChange(idx, 'title', e.target.value)}
+            />
+            <input
+              className="border rounded px-3 py-2 mb-1 w-full"
+              placeholder="Описание"
+              value={slide.desc}
+              onChange={e => handleSlideTextChange(idx, 'desc', e.target.value)}
+            />
+            <FileButton
+              label={`Загрузить демо для слайда ${idx+2}`}
+              inputRef={demoInputs[idx]}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleDemoImage(idx, e.target.files && e.target.files[0] ? e.target.files[0] : null)}
+              multiple={false}
+              accept={IMAGE_ACCEPT}
+            />
+            <span className="text-xs text-gray-500">{demoImages[idx] ? demoImages[idx]!.name : "Файл не выбран"}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mb-4">
+        <div className="font-semibold mb-2">Фоны для первого слайда (hook):</div>
+        <FileButton
+          label="Загрузить фоны для hook-слайда"
+          inputRef={hookBgInput}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => e.target.files && handleHookBackgrounds(e.target.files)}
+          multiple={true}
+          accept={IMAGE_ACCEPT}
+        />
+        <div className="text-xs text-gray-500">Загружено: {hookBackgrounds.length} файлов</div>
+      </div>
+      <div className="mb-4">
+        <div className="font-semibold mb-2">Фоны для продуктовых слайдов (2–6):</div>
+        <FileButton
+          label="Загрузить фоны для продуктовых слайдов"
+          inputRef={slideBgInput}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => e.target.files && handleSlideBackgrounds(e.target.files)}
+          multiple={true}
+          accept={IMAGE_ACCEPT}
+        />
+        <div className="text-xs text-gray-500">Загружено: {slideBackgrounds.length} файлов</div>
+        {hookBackgrounds.length > 0 && slideBackgrounds.length > 0 && (
+          <div className="text-xs text-gray-700 mt-1">
+            Каруселей будет: <b>{carousels.length}</b> (по 6 слайдов в каждой)
+          </div>
+        )}
+      </div>
+      <div className="mb-4">
+        <div className="font-semibold mb-2">Превью слайда</div>
+        <div className="w-full flex flex-col items-center">
+          <div className="border rounded-lg bg-white shadow flex items-center justify-center" style={{ width: 216, height: 270 }}>
+            <canvas
+              ref={canvasRef}
+              width={1080}
+              height={1350}
+              style={{ width: 216, height: 270, background: '#eee', borderRadius: 12 }}
+            />
+          </div>
+          <div className="flex gap-2 mt-4">
+            {[0,1,2,3,4,5].map(idx => (
+              <button
+                key={idx}
+                className={`px-3 py-1 rounded ${previewSlide===idx ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+                onClick={() => setPreviewSlide(idx)}
+              >
+                {idx+1}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mb-4 flex justify-center">
+        <button
+          className="mt-4 px-6 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition"
+          onClick={handleExportAll}
+          disabled={isGenerating}
+        >
+          {isGenerating ? (
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              Генерируется...
+            </div>
+          ) : (
+            "Сгенерировать и скачать все карусели"
+          )}
+        </button>
+      </div>
+    </div>
+  );
+} 
