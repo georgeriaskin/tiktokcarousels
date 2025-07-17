@@ -45,7 +45,7 @@ export default function Template3Carousel() {
     // Очистить
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     // Фон
-    let bgFile: File | null = slideBg;
+    const bgFile: File | null = slideBg;
     if (bgFile) {
       const img = new window.Image();
       img.onload = () => {
@@ -75,7 +75,6 @@ export default function Template3Carousel() {
       ctx.strokeStyle = '#000';
       ctx.fillStyle = '#fff';
       const lineHeight = 56;
-      const maxTextWidth = 920;
       function wrapMultiline(text: string, x: number, y: number, maxWidth: number, lineHeight: number, draw = true) {
         if (!ctx) return 0;
         const paragraphs = text.split(/\n/);
@@ -190,7 +189,7 @@ export default function Template3Carousel() {
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
         // Фон
-        let bgFile: File | null = slideBackgrounds[i];
+        const bgFile: File | null = slideBackgrounds[i];
         if (bgFile) {
           const img = await loadImage(bgFile);
           // Cover
@@ -211,7 +210,6 @@ export default function Template3Carousel() {
         ctx.textAlign = 'center';
         ctx.font = 'bold 48px Montserrat, sans-serif';
         ctx.lineWidth = 8;
-        const maxTextWidth = 920;
         const lineHeight = 56;
         function wrapMultiline(text: string, x: number, y: number, maxWidth: number, lineHeight: number, draw = true) {
           if (!ctx) return 0;
