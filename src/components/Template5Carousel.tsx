@@ -423,7 +423,6 @@ export default function Template5Carousel() {
           ctx.lineJoin = 'round';
           ctx.textBaseline = 'top';
           const padX = 48;
-          const padY = 32;
           const yTitle = 300;
           const titleW = ctx.measureText(title).width + padX * 2;
           const titleH = 100;
@@ -454,7 +453,6 @@ export default function Template5Carousel() {
           ctx.lineJoin = 'round';
           ctx.textBaseline = 'top';
           const padX = 32;
-          const padY = 20;
           const yProduct = 120;
           const productW = ctx.measureText(product).width + padX * 2;
           const productH = 70;
