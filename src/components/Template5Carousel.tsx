@@ -226,11 +226,11 @@ export default function Template5Carousel() {
       // Slide 2: Заголовок продукта с подложкой, текст, demo
       if (previewSlide === 1) {
         // === Заголовок продукта ===
-        ctx.font = 'bold 48px Montserrat, sans-serif';
+        ctx.font = 'bold 56px Montserrat, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const maxTextWidth = 800;
-        const lineHeight = 56;
+        const lineHeight = 64;
         const padX = 32;
         const padY = 20;
         const lines = wrapMultiline(product, 540, 0, maxTextWidth, lineHeight, false);
@@ -241,14 +241,14 @@ export default function Template5Carousel() {
         });
         const textBlockHeight = lines.length * lineHeight;
         const boxH = textBlockHeight + padY * 2;
-        const y = 250;
+        const y = 200;
         ctx.save();
         ctx.fillStyle = '#fff';
         roundRect(ctx, 540 - (maxLineWidth/2 + padX), y, maxLineWidth + padX*2, boxH, 28);
         ctx.fill();
         ctx.restore();
         ctx.fillStyle = '#111';
-        ctx.font = 'bold 48px Montserrat, sans-serif';
+        ctx.font = 'bold 56px Montserrat, sans-serif';
         ctx.textBaseline = 'middle';
         let currY = y + boxH / 2 - textBlockHeight / 2 + lineHeight / 2;
         lines.forEach((l: string) => {
