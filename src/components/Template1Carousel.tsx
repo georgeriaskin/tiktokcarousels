@@ -3,16 +3,16 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 
 const IMAGE_ACCEPT = ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tiff,.svg";
+const LS_SLIDETEXTS = 'template1_slideTexts';
 
 export default function Template1Carousel() {
   // State for текстов (многострочные)
-  const [slideTexts, setSlideTexts] = useState([
-    "", // Slide 1 (hook)
-    "", // Slide 2
-    "", // Slide 3
-    "", // Slide 4
-    "", // Slide 5 (CTA)
-  ]);
+  const [slideTexts, setSlideTexts] = useState(() => {
+    try {
+      const val = localStorage.getItem(LS_SLIDETEXTS);
+      return val ? JSON.parse(val) : ["", "", "", "", ""];
+    } catch { return ["", "", "", "", ""]; }
+  });
 
   // State for files
   const [hookBackgrounds, setHookBackgrounds] = useState<File[]>([]);
@@ -160,6 +160,10 @@ export default function Template1Carousel() {
     // eslint-disable-next-line
   }, [previewSlide, hookBackgrounds, slideBackgrounds, demoImages, slideTexts]);
 
+  React.useEffect(() => {
+    localStorage.setItem(LS_SLIDETEXTS, JSON.stringify(slideTexts));
+  }, [slideTexts]);
+
   // Добавляем атрибуты webkitdirectory через useEffect
   React.useEffect(() => {
     if (hookBgInput.current) {
@@ -174,7 +178,7 @@ export default function Template1Carousel() {
 
   // Handlers
   const handleSlideText = (idx: number, value: string) => {
-    setSlideTexts(prev => prev.map((t, i) => (i === idx ? value : t)));
+    setSlideTexts((prev: string[]) => prev.map((t: string, i: number) => (i === idx ? value : t)));
   };
 
   const handleFiles = (files: FileList, setter: (files: File[]) => void) => {
