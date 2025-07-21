@@ -30,22 +30,17 @@ export default function Template5Carousel() {
       return val ? JSON.parse(val) : "";
     } catch { return ""; }
   });
-  const [slideTexts, setSlideTexts] = useState([
-    "", // Slide 2
-    "", // Slide 3
-    "", // Slide 4
-    "", // Slide 5 (CTA)
-  ]);
+  const [slideTexts, setSlideTexts] = useState(() => {
+    try {
+      const val = localStorage.getItem(LS_SLIDETEXTS);
+      const arr = val ? JSON.parse(val) : null;
+      if (Array.isArray(arr) && arr.length === 4) {
+        return arr;
+      }
+    } catch {}
+    return ["", "", "", ""]; // Default value
+  });
   // --- localStorage for slideTexts ---
-  useEffect(() => {
-    const val = localStorage.getItem(LS_SLIDETEXTS);
-    if (val) {
-      try {
-        const arr = JSON.parse(val);
-        if (Array.isArray(arr) && arr.length === 4) setSlideTexts(arr);
-      } catch {}
-    }
-  }, []);
   useEffect(() => {
     localStorage.setItem(LS_TITLE, JSON.stringify(title));
   }, [title]);
@@ -117,6 +112,139 @@ export default function Template5Carousel() {
     ctx.closePath();
   }
 
+  // Вынести общие функции рендера
+  function renderTitleBlock(ctx: CanvasRenderingContext2D, title: string, subtitle: string, yOffset: number = 0) {
+    // Заголовок
+    ctx.font = 'bold 72px Montserrat, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const maxTextWidth = 920;
+    const lineHeight = 80;
+    const padX = 48;
+    const padY = 32;
+    const lines = wrapMultiline(ctx, title, 540, 0, maxTextWidth, lineHeight, false);
+    let maxLineWidth = 0;
+    lines.forEach((l: string) => {
+      const w = ctx.measureText(l.trim()).width;
+      if (w > maxLineWidth) maxLineWidth = w;
+    });
+    const textBlockHeight = lines.length * lineHeight;
+    const boxH = textBlockHeight + padY * 2;
+    // Смещение вверх на 400px
+    const y = Math.round((1920 - boxH - 120) / 2) - 400 + yOffset;
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    roundRect(ctx, 540 - (maxLineWidth/2 + padX), y, maxLineWidth + padX*2, boxH, 40);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#111';
+    ctx.font = 'bold 72px Montserrat, sans-serif';
+    ctx.textBaseline = 'middle';
+    let currY = y + boxH / 2 - textBlockHeight / 2 + lineHeight / 2;
+    lines.forEach((l: string) => {
+      ctx.fillText(l.trim(), 540, currY);
+      currY += lineHeight;
+    });
+    // Подзаголовок
+    if (subtitle.trim()) {
+      ctx.font = 'bold 56px Montserrat, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      const subMaxTextWidth = 800;
+      const subLineHeight = 64;
+      const subPadX = 32;
+      const subPadY = 24;
+      const subLines = wrapMultiline(ctx, subtitle, 540, 0, subMaxTextWidth, subLineHeight, false);
+      let subMaxLineWidth = 0;
+      subLines.forEach((l: string) => {
+        const w = ctx.measureText(l.trim()).width;
+        if (w > subMaxLineWidth) subMaxLineWidth = w;
+      });
+      const subBlockHeight = subLines.length * subLineHeight;
+      const subBoxH = subBlockHeight + subPadY * 2;
+      const subY = y + boxH + 80; // 80px отступ вниз
+      ctx.save();
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = '#111';
+      roundRect(ctx, 540 - (subMaxLineWidth/2 + subPadX), subY, subMaxLineWidth + subPadX*2, subBoxH, 28);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+      ctx.font = 'bold 56px Montserrat, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      let subCurrY = subY + subBoxH / 2 - subBlockHeight / 2 + subLineHeight / 2;
+      subLines.forEach((l: string) => {
+        ctx.fillText(l.trim(), 540, subCurrY);
+        subCurrY += subLineHeight;
+      });
+    }
+  }
+  function renderProductBlock(ctx: CanvasRenderingContext2D, product: string, yOffset: number = 0) {
+    ctx.font = 'bold 56px Montserrat, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const maxTextWidth = 800;
+    const lineHeight = 64;
+    const padX = 32;
+    const padY = 20;
+    const lines = wrapMultiline(ctx, product, 540, 0, maxTextWidth, lineHeight, false);
+    let maxLineWidth = 0;
+    lines.forEach((l: string) => {
+      const w = ctx.measureText(l.trim()).width;
+      if (w > maxLineWidth) maxLineWidth = w;
+    });
+    const textBlockHeight = lines.length * lineHeight;
+    const boxH = textBlockHeight + padY * 2;
+    const y = 200 + yOffset;
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    roundRect(ctx, 540 - (maxLineWidth/2 + padX), y, maxLineWidth + padX*2, boxH, 28);
+    ctx.fill();
+    ctx.restore();
+    ctx.fillStyle = '#111';
+    ctx.font = 'bold 56px Montserrat, sans-serif';
+    ctx.textBaseline = 'middle';
+    let currY = y + boxH / 2 - textBlockHeight / 2 + lineHeight / 2;
+    lines.forEach((l: string) => {
+      ctx.fillText(l.trim(), 540, currY);
+      currY += lineHeight;
+    });
+  }
+  function renderMainTextBlock(ctx: CanvasRenderingContext2D, text: string) {
+    ctx.font = 'bold 48px Montserrat, sans-serif';
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const textWidth = 920;
+    const textLineHeight = 56;
+    const textLines = wrapMultiline(ctx, text.trim(), 540, 0, textWidth, textLineHeight, false);
+    const textBlockHeight2 = textLines.length * textLineHeight;
+    const textY = 600 - 100 - textBlockHeight2 + textLineHeight;
+    textLines.forEach((l: string, i: number) => {
+      ctx.strokeText(l.trim(), 540, textY + i * textLineHeight);
+      ctx.fillText(l.trim(), 540, textY + i * textLineHeight);
+    });
+  }
+  function renderCtaBlock(ctx: CanvasRenderingContext2D, text: string) {
+    ctx.font = `bold 48px Montserrat, sans-serif`;
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    const textWidth = 800;
+    const lineHeight = 56;
+    const lines = wrapMultiline(ctx, text, 540, 960, textWidth, lineHeight, false);
+    lines.forEach((l: string, i: number) => {
+      ctx.strokeText(l.trim(), 540, 960 + i * lineHeight);
+      ctx.fillText(l.trim(), 540, 960 + i * lineHeight);
+    });
+  }
+
   // Рендер предпросмотра на Canvas
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -156,121 +284,13 @@ export default function Template5Carousel() {
       ctx.save();
       // Slide 1: Заголовок с подложкой и подзаголовок
       if (previewSlide === 0) {
-        // === Заголовок ===
-        ctx.font = 'bold 72px Montserrat, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const maxTextWidth = 920;
-        const lineHeight = 80;
-        const padX = 48;
-        const padY = 32;
-        const lines = wrapMultiline(title, 540, 0, maxTextWidth, lineHeight, false);
-        let maxLineWidth = 0;
-        lines.forEach((l: string) => {
-          const w = ctx.measureText(l.trim()).width;
-          if (w > maxLineWidth) maxLineWidth = w;
-        });
-        const textBlockHeight = lines.length * lineHeight;
-        const boxH = textBlockHeight + padY * 2;
-        const y = Math.round((1920 - boxH - 120) / 2);
-        ctx.save();
-        ctx.fillStyle = '#fff';
-        roundRect(ctx, 540 - (maxLineWidth/2 + padX), y, maxLineWidth + padX*2, boxH, 40);
-        ctx.fill();
-        ctx.restore();
-        ctx.fillStyle = '#111';
-        ctx.font = 'bold 72px Montserrat, sans-serif';
-        ctx.textBaseline = 'middle';
-        let currY = y + boxH / 2 - textBlockHeight / 2 + lineHeight / 2;
-        lines.forEach((l: string) => {
-          ctx.fillText(l.trim(), 540, currY);
-          currY += lineHeight;
-        });
-        // === Подзаголовок ===
-        if (subtitle.trim()) {
-          ctx.font = 'bold 56px Montserrat, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#fff';
-          const subMaxTextWidth = 800;
-          const subLineHeight = 64;
-          const subPadX = 32;
-          const subPadY = 24;
-          const subLines = wrapMultiline(subtitle, 540, 0, subMaxTextWidth, subLineHeight, false);
-          let subMaxLineWidth = 0;
-          subLines.forEach((l: string) => {
-            const w = ctx.measureText(l.trim()).width;
-            if (w > subMaxLineWidth) subMaxLineWidth = w;
-          });
-          const subBlockHeight = subLines.length * subLineHeight;
-          const subBoxH = subBlockHeight + subPadY * 2;
-          const subY = y + boxH + 80; // 80px отступ вниз
-          ctx.save();
-          ctx.globalAlpha = 0.85;
-          ctx.fillStyle = '#111';
-          roundRect(ctx, 540 - (subMaxLineWidth/2 + subPadX), subY, subMaxLineWidth + subPadX*2, subBoxH, 28);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-          ctx.restore();
-          ctx.font = 'bold 56px Montserrat, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#fff';
-          let subCurrY = subY + subBoxH / 2 - subBlockHeight / 2 + subLineHeight / 2;
-          subLines.forEach((l: string) => {
-            ctx.fillText(l.trim(), 540, subCurrY);
-            subCurrY += subLineHeight;
-          });
-        }
+        renderTitleBlock(ctx, title, subtitle, -200);
       }
       // Slide 2: Заголовок продукта с подложкой, текст, demo
       if (previewSlide === 1) {
-        // === Заголовок продукта ===
-        ctx.font = 'bold 56px Montserrat, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const maxTextWidth = 800;
-        const lineHeight = 64;
-        const padX = 32;
-        const padY = 20;
-        const lines = wrapMultiline(product, 540, 0, maxTextWidth, lineHeight, false);
-        let maxLineWidth = 0;
-        lines.forEach((l: string) => {
-          const w = ctx.measureText(l.trim()).width;
-          if (w > maxLineWidth) maxLineWidth = w;
-        });
-        const textBlockHeight = lines.length * lineHeight;
-        const boxH = textBlockHeight + padY * 2;
-        const y = 200;
-        ctx.save();
-        ctx.fillStyle = '#fff';
-        roundRect(ctx, 540 - (maxLineWidth/2 + padX), y, maxLineWidth + padX*2, boxH, 28);
-        ctx.fill();
-        ctx.restore();
-        ctx.fillStyle = '#111';
-        ctx.font = 'bold 56px Montserrat, sans-serif';
-        ctx.textBaseline = 'middle';
-        let currY = y + boxH / 2 - textBlockHeight / 2 + lineHeight / 2;
-        lines.forEach((l: string) => {
-          ctx.fillText(l.trim(), 540, currY);
-          currY += lineHeight;
-        });
+        renderProductBlock(ctx, product);
         // === Текст и demo ===
-        ctx.font = 'bold 48px Montserrat, sans-serif';
-        ctx.lineWidth = 8;
-        ctx.strokeStyle = '#000';
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        const textWidth = 920;
-        const textLineHeight = 56;
-        const textLines = wrapMultiline(slideTexts[0].trim(), 540, 0, textWidth, textLineHeight, false);
-        const textBlockHeight2 = textLines.length * textLineHeight;
-        const textY = 600 - 100 - textBlockHeight2 + textLineHeight;
-        textLines.forEach((l: string, i: number) => {
-          ctx.strokeText(l.trim(), 540, textY + i * textLineHeight);
-          ctx.fillText(l.trim(), 540, textY + i * textLineHeight);
-        });
+        renderMainTextBlock(ctx, slideTexts[0]);
         // Demo картинка
         const demoFile = demo[0];
         if (demoFile) {
@@ -290,20 +310,7 @@ export default function Template5Carousel() {
       }
       // Slides 3-4: текст + demo (как в Template1)
       if (previewSlide >= 2 && previewSlide <= 3) {
-        ctx.font = 'bold 48px Montserrat, sans-serif';
-        ctx.lineWidth = 8;
-        ctx.strokeStyle = '#000';
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        const textWidth = 920;
-        const lineHeight = 56;
-        const lines = wrapMultiline(slideTexts[previewSlide - 1].trim(), 540, 0, textWidth, lineHeight, false);
-        const textBlockHeight = lines.length * lineHeight;
-        const textY = 600 - 100 - textBlockHeight + lineHeight;
-        lines.forEach((l: string, i: number) => {
-          ctx.strokeText(l.trim(), 540, textY + i * lineHeight);
-          ctx.fillText(l.trim(), 540, textY + i * lineHeight);
-        });
+        renderMainTextBlock(ctx, slideTexts[previewSlide - 1]);
         // Demo картинка
         const demoFile = demo[previewSlide - 1];
         if (demoFile) {
@@ -323,18 +330,7 @@ export default function Template5Carousel() {
       }
       // Slide 5: CTA
       if (previewSlide === 4) {
-        ctx.font = `bold 48px Montserrat, sans-serif`;
-        ctx.lineWidth = 8;
-        ctx.strokeStyle = '#000';
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        const textWidth = 800;
-        const lineHeight = 56;
-        const lines = wrapMultiline(slideTexts[3], 540, 960, textWidth, lineHeight, false);
-        lines.forEach((l: string, i: number) => {
-          ctx.strokeText(l.trim(), 540, 960 + i * lineHeight);
-          ctx.fillText(l.trim(), 540, 960 + i * lineHeight);
-        });
+        renderCtaBlock(ctx, slideTexts[3]);
       }
       ctx.restore();
     }
@@ -342,11 +338,7 @@ export default function Template5Carousel() {
   }, [previewSlide, hookBackgrounds, slideBackgrounds, demoImages, slideTexts, title, subtitle, product]);
 
   // Исправить функцию wrapMultiline так, чтобы она возвращала массив строк:
-  function wrapMultiline(text: string, x: number, y: number, maxWidth: number, lineHeight: number, draw = true): string[] {
-    const canvas = canvasRef.current;
-    if (!canvas) return [];
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return [];
+  function wrapMultiline(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number, draw = true): string[] {
     const paragraphs = text.split(/\n/);
     const lines: string[] = [];
     paragraphs.forEach(paragraph => {
@@ -367,7 +359,9 @@ export default function Template5Carousel() {
     });
     if (draw) {
       lines.forEach((l: string, i: number) => {
-        ctx.strokeText(l.trim(), x, y + i * lineHeight);
+        if (ctx.strokeStyle !== 'transparent' && ctx.strokeStyle !== 'rgba(0, 0, 0, 0)') {
+          ctx.strokeText(l.trim(), x, y + i * lineHeight);
+        }
         ctx.fillText(l.trim(), x, y + i * lineHeight);
       });
     }
@@ -417,69 +411,12 @@ export default function Template5Carousel() {
         ctx.save();
         // Slide 1: Заголовок с подложкой и подзаголовок
         if (slide === 0) {
-          ctx.font = 'bold 72px Montserrat, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.lineWidth = 12;
-          ctx.lineJoin = 'round';
-          ctx.textBaseline = 'top';
-          const padX = 48;
-          const yTitle = 300;
-          const titleW = ctx.measureText(title).width + padX * 2;
-          const titleH = 100;
-          ctx.save();
-          ctx.fillStyle = '#fff';
-          ctx.strokeStyle = '#000';
-          roundRect(ctx, 540 - titleW / 2, yTitle, titleW, titleH, 40);
-          ctx.fill();
-          ctx.lineWidth = 4;
-          ctx.stroke();
-          ctx.restore();
-          ctx.fillStyle = '#111';
-          ctx.font = 'bold 72px Montserrat, sans-serif';
-          ctx.fillText(title, 540, yTitle + titleH / 2 - 24);
-          ctx.font = 'bold 48px Montserrat, sans-serif';
-          ctx.lineWidth = 8;
-          ctx.strokeStyle = '#000';
-          ctx.fillStyle = '#fff';
-          ctx.textBaseline = 'top';
-          ctx.strokeText(subtitle, 540, yTitle + titleH + 200);
-          ctx.fillText(subtitle, 540, yTitle + titleH + 200);
+          renderTitleBlock(ctx, title, subtitle, -200);
         }
         // Slide 2: Заголовок продукта с подложкой, текст, demo
         if (slide === 1) {
-          ctx.font = 'bold 48px Montserrat, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.lineWidth = 8;
-          ctx.lineJoin = 'round';
-          ctx.textBaseline = 'top';
-          const padX = 32;
-          const yProduct = 120;
-          const productW = ctx.measureText(product).width + padX * 2;
-          const productH = 70;
-          ctx.save();
-          ctx.fillStyle = '#fff';
-          ctx.strokeStyle = '#000';
-          roundRect(ctx, 540 - productW / 2, yProduct, productW, productH, 28);
-          ctx.fill();
-          ctx.lineWidth = 3;
-          ctx.stroke();
-          ctx.restore();
-          ctx.fillStyle = '#111';
-          ctx.font = 'bold 48px Montserrat, sans-serif';
-          ctx.fillText(product, 540, yProduct + productH / 2 - 12);
-          ctx.font = 'bold 48px Montserrat, sans-serif';
-          ctx.lineWidth = 8;
-          ctx.strokeStyle = '#000';
-          ctx.fillStyle = '#fff';
-          const textWidth = 920;
-          const lineHeight = 56;
-          const lines = wrapMultiline(slideTexts[0].trim(), 540, 0, textWidth, lineHeight, false);
-          const textBlockHeight = lines.length * lineHeight;
-          const textY = 600 - 100 - textBlockHeight + lineHeight;
-          lines.forEach((l: string, i: number) => {
-            ctx.strokeText(l.trim(), 540, textY + i * lineHeight);
-            ctx.fillText(l.trim(), 540, textY + i * lineHeight);
-          });
+          renderProductBlock(ctx, product);
+          renderMainTextBlock(ctx, slideTexts[0]);
           const demoFile = demoImages[0];
           if (demoFile) {
             const demoImg = await loadImage(demoFile);
@@ -494,19 +431,7 @@ export default function Template5Carousel() {
         }
         // Slides 3-4: текст + demo
         if (slide >= 2 && slide <= 3) {
-          ctx.font = 'bold 48px Montserrat, sans-serif';
-          ctx.lineWidth = 8;
-          ctx.strokeStyle = '#000';
-          ctx.fillStyle = '#fff';
-          const textWidth = 920;
-          const lineHeight = 56;
-          const lines = wrapMultiline(slideTexts[slide - 1].trim(), 540, 0, textWidth, lineHeight, false);
-          const textBlockHeight = lines.length * lineHeight;
-          const textY = 600 - 100 - textBlockHeight + lineHeight;
-          lines.forEach((l: string, i: number) => {
-            ctx.strokeText(l.trim(), 540, textY + i * lineHeight);
-            ctx.fillText(l.trim(), 540, textY + i * lineHeight);
-          });
+          renderMainTextBlock(ctx, slideTexts[slide - 1]);
           const demoFile = demoImages[slide - 1];
           if (demoFile) {
             const demoImg = await loadImage(demoFile);
@@ -521,17 +446,7 @@ export default function Template5Carousel() {
         }
         // Slide 5: CTA
         if (slide === 4) {
-          ctx.font = `bold 48px Montserrat, sans-serif`;
-          ctx.lineWidth = 8;
-          ctx.strokeStyle = '#000';
-          ctx.fillStyle = '#fff';
-          const textWidth = 800;
-          const lineHeight = 56;
-          const lines = wrapMultiline(slideTexts[3], 540, 960, textWidth, lineHeight, false);
-          lines.forEach((l: string, i: number) => {
-            ctx.strokeText(l.trim(), 540, 960 + i * lineHeight);
-            ctx.fillText(l.trim(), 540, 960 + i * lineHeight);
-          });
+          renderCtaBlock(ctx, slideTexts[3]);
         }
         ctx.restore();
         const blob = await new Promise<Blob>(resolve => canvas.toBlob(blob => resolve(blob!), 'image/png'));
