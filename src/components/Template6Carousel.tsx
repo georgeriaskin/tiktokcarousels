@@ -32,7 +32,16 @@ export default function Template6Carousel() {
     setSlideTexts(prev => prev.map((t, i) => (i === idx ? value : t)));
   };
 
-  function wrapMultiline(ctx: CanvasRenderingContext2D, text: string, _x: number, _y: number, maxWidth: number, lineHeight: number, draw = true): string[] {
+  function renderTextBlock(ctx: CanvasRenderingContext2D, text: string) {
+    if (!text.trim()) return;
+    ctx.font = 'bold 48px Montserrat, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = '#fff';
+    const maxTextWidth = 920;
+    const lineHeight = 56;
     const paragraphs = text.split(/\n/);
     const lines: string[] = [];
     paragraphs.forEach(paragraph => {
@@ -40,7 +49,7 @@ export default function Template6Carousel() {
       let line = '';
       for (let n = 0; n < words.length; n++) {
         const testLine = line + words[n] + ' ';
-        if (ctx.measureText(testLine).width > maxWidth && n > 0) {
+        if (ctx.measureText(testLine).width > maxTextWidth && n > 0) {
           lines.push(line.trim());
           line = words[n] + ' ';
         } else {
@@ -49,58 +58,9 @@ export default function Template6Carousel() {
       }
       lines.push(line.trim());
     });
-    if (draw) {
-      lines.forEach((l, i) => {
-        ctx.fillText(l.trim(), _x, _y + i * lineHeight);
-      });
-    }
-    return lines;
-  }
-
-  function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-  }
-
-  function renderTextBlock(ctx: CanvasRenderingContext2D, text: string) {
-    if (!text.trim()) return;
-    ctx.font = 'bold 72px Montserrat, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const maxTextWidth = 920;
-    const lineHeight = 84;
-    const padX = 48;
-    const padY = 36;
-    const lines = wrapMultiline(ctx, text, 540, 0, maxTextWidth, lineHeight, false);
-    let maxLineWidth = 0;
-    lines.forEach(l => {
-      const w = ctx.measureText(l.trim()).width;
-      if (w > maxLineWidth) maxLineWidth = w;
-    });
-    const textBlockHeight = lines.length * lineHeight;
-    const boxH = textBlockHeight + padY * 2;
-    const boxY = 120;
-    ctx.save();
-    ctx.fillStyle = '#fff';
-    roundRect(ctx, 540 - (maxLineWidth / 2 + padX), boxY, maxLineWidth + padX * 2, boxH, 40);
-    ctx.fill();
-    ctx.restore();
-    ctx.fillStyle = '#111';
-    ctx.font = 'bold 72px Montserrat, sans-serif';
-    ctx.textBaseline = 'middle';
-    let currY = boxY + padY + lineHeight / 2;
-    lines.forEach(l => {
-      ctx.fillText(l.trim(), 540, currY);
-      currY += lineHeight;
+    lines.forEach((l, i) => {
+      ctx.strokeText(l, 540, 300 + i * lineHeight);
+      ctx.fillText(l, 540, 300 + i * lineHeight);
     });
   }
 
@@ -269,7 +229,7 @@ export default function Template6Carousel() {
         <textarea
           key={i}
           className="border rounded px-3 py-2 resize-vertical min-h-[80px]"
-          placeholder={`Слайд ${i + 1}: Текст (сверху, с белой подложкой)`}
+          placeholder={`Слайд ${i + 1}: Текст (сверху)`}
           value={slideTexts[i]}
           onChange={e => handleSlideText(i, e.target.value)}
         />
